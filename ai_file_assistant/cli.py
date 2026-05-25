@@ -23,7 +23,7 @@ console = Console()
 
 BANNER = """
 ╔══════════════════════════════════════════════╗
-║          AI 文件助手 v2.0.0                  ║
+║          AI 文件助手 v2.1.0                  ║
 ║      智能文件管理 Agent · 安全可靠           ║
 ╚══════════════════════════════════════════════╝
 """
@@ -344,6 +344,35 @@ def config(init_flag, show_flag, edit_flag):
     console.print("  python -m ai_file_assistant config --edit   编辑配置文件")
     console.print()
     console.print(f"[dim]配置文件路径: {CONFIG_PATH}[/]")
+
+
+# ── Serve 命令 ────────────────────────────────────────────
+
+@cli.command()
+@click.option("--transport", type=click.Choice(["stdio", "sse"]), default="stdio", help="传输协议")
+@click.option("--port", default=8080, help="SSE 模式端口")
+@click.option("--host", default="0.0.0.0", help="SSE 模式绑定地址")
+def serve(transport, port, host):
+    """启动 MCP 工具服务器（供 Claude / OpenAI / Agent 调用）"""
+    from .mcp_server import run_stdio, run_sse
+
+    if transport == "sse":
+        console.print(Panel.fit(
+            f"[bold]MCP 服务器启动中...[/]\n"
+            f"传输: SSE\n"
+            f"地址: http://{host}:{port}\n\n"
+            f"[dim]供 Browser Use / HTTP 客户端调用[/]",
+            border_style="green",
+        ))
+        run_sse(host=host, port=port)
+    else:
+        console.print(Panel.fit(
+            "[bold]MCP 服务器启动中...[/]\n"
+            "传输: stdio\n\n"
+            "[dim]供 Claude / OpenAI / 本地 Agent 调用[/]",
+            border_style="green",
+        ))
+        run_stdio()
 
 
 # ── 入口 ──────────────────────────────────────────────────
