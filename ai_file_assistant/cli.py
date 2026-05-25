@@ -56,10 +56,13 @@ def cli(ctx):
 @click.argument("directory", type=click.Path(exists=True, file_okay=False))
 @click.option("--hidden", is_flag=True, help="包含隐藏文件")
 @click.option("--config", "config_path", type=click.Path(), help="自定义配置文件路径")
-def agent(directory, hidden, config_path):
+@click.option("--time-archive", is_flag=True, help="按时间归档（年/月子目录）")
+def agent(directory, hidden, config_path, time_archive):
     """启动 AI 文件助手（交互模式）"""
     target = Path(directory).expanduser().resolve()
     config = load_config(Path(config_path)) if config_path else get_config()
+    if time_archive:
+        config.behavior.time_archive = True
 
     # 步骤 1: 问候
     print_agent_greeting(target)
@@ -181,10 +184,13 @@ def scan(directory, hidden):
 @click.option("--dry-run", is_flag=True, help="仅预览，不执行操作")
 @click.option("--hidden", is_flag=True, help="包含隐藏文件")
 @click.option("--yes", "-y", is_flag=True, help="跳过确认，直接执行")
-def organize(directory, dry_run, hidden, yes):
+@click.option("--time-archive", is_flag=True, help="按时间归档（年/月子目录）")
+def organize(directory, dry_run, hidden, yes, time_archive):
     """扫描、规划并整理目录（完整流程）"""
     target = Path(directory).expanduser().resolve()
     config = get_config()
+    if time_archive:
+        config.behavior.time_archive = True
 
     console.print(Panel.fit(
         f"[bold]正在扫描:[/] {target}",

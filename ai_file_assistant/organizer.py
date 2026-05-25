@@ -87,13 +87,29 @@ def build_organize_plan(scan_result, config=None) -> OrganizePlan:
         for cat in categories:
             category_to_dir[cat] = dirname
 
+    # 时间归档配置
+    time_archive = config.behavior.time_archive if config else False
+    time_format = config.behavior.time_archive_format if config else "%Y/%B"
+    time_categories = set(config.behavior.time_archive_categories if config else [
+        "文档", "PDF", "图片", "截图", "视频", "音乐",
+    ])
+
+    def _get_dest_dir(fi) -> Path:
+        """计算目标目录（含时间归档）"""
+        dest_dir_name = category_to_dir.get(fi.category, "Others")
+        dest_dir = target / dest_dir_name
+        # 时间归档：为指定类别添加 year/month 子目录
+        if time_archive and fi.category in time_categories:
+            time_path = fi.modified.strftime(time_format)
+            dest_dir = dest_dir / time_path
+        return dest_dir
+
     # 1. 移动方案（带风险评估）
     for fi in scan_result.files:
         if fi.is_duplicate:
             continue
 
-        dest_dir_name = category_to_dir.get(fi.category, "Others")
-        dest_dir = target / dest_dir_name
+        dest_dir = _get_dest_dir(fi)
 
         if fi.path.parent != dest_dir:
             risk = getattr(fi, "risk", "safe")
@@ -104,11 +120,13 @@ def build_organize_plan(scan_result, config=None) -> OrganizePlan:
                 risk = "risky"
                 reasoning = "最近修改的代码文件"
 
+            # 显示相对路径
+            rel_path = dest_dir.relative_to(target)
             action = OrganizeAction(
                 action_type="move",
                 source=fi.path,
                 destination=dest_dir / fi.name,
-                description=f"{fi.name} → {dest_dir_name}/",
+                description=f"{fi.name} → {rel_path}/",
                 risk=risk,
                 reasoning=reasoning,
             )
@@ -119,8 +137,7 @@ def build_organize_plan(scan_result, config=None) -> OrganizePlan:
     for fi, old_name, new_name in rename_plan:
         if fi.is_duplicate:
             continue
-        dest_dir_name = category_to_dir.get(fi.category, "Others")
-        dest_dir = target / dest_dir_name
+        dest_dir = _get_dest_dir(fi)
         action = OrganizeAction(
             action_type="rename",
             source=fi.path,

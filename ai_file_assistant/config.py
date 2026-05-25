@@ -77,6 +77,11 @@ class BehaviorConfig:
     create_subfolders: bool = True
     handle_duplicates: str = "move"
     rename_strategy: str = "clean"
+    time_archive: bool = False
+    time_archive_format: str = "%Y/%B"  # e.g. "2026/April"
+    time_archive_categories: list = field(default_factory=lambda: [
+        "文档", "PDF", "图片", "截图", "视频", "音乐",
+    ])
 
 
 @dataclass
