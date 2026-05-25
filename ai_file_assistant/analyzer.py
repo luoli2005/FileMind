@@ -55,37 +55,107 @@ class AnalysisResult:
 def _assess_value(fi, config=None) -> tuple:
     """评估文件价值，返回 (value, reasoning)"""
     name_lower = fi.name.lower()
-    threshold_kb = config.thresholds.valuable_file_min_kb if config else 10
+    now = datetime.now()
+    days_since_modified = (now - fi.modified).days
+    days_since_created = (now - fi.created).days
 
-    # 高价值：文档/PDF 且有一定大小
-    if fi.category in ("文档", "PDF") and fi.size > threshold_kb * 1024:
-        junk = config.classification.junk_keywords if config else []
-        if any(kw in name_lower for kw in junk):
-            return "medium", "文档但文件名含垃圾关键词"
-        return "high", "重要文档文件"
+    # ── 高价值：内容识别命中的重要文档 ──────────────────
 
-    # 高价值：近期修改的代码
+    content_type = getattr(fi, "content_type", "")
+    content_confidence = getattr(fi, "content_confidence", 0.0)
+
+    if content_type in ("发票", "合同", "财务报表") and content_confidence >= 0.3:
+        return "high", f"{content_type}（{content_confidence:.0%}）"
+
+    if content_type == "简历" and content_confidence >= 0.3:
+        return "high", f"简历（{content_confidence:.0%}）"
+
+    if content_type == "论文" and content_confidence >= 0.3:
+        return "high", f"论文（{content_confidence:.0%}）"
+
+    # ── 高价值：近期活跃的工作文件 ──────────────────────
+
+    # 近期修改的代码（7天内）
+    if fi.category == "代码" and days_since_modified <= 7:
+        return "high", "近期修改的代码文件"
+
+    # 工作文档（文件名含工作关键词，且非垃圾文件）
+    junk = config.classification.junk_keywords if config else [
+        "copy", "副本", "backup", "bak", "old", "temp",
+        "untitled", "新建", "未命名", "test", "debug",
+    ]
+    is_junk = any(kw in name_lower for kw in junk)
+
+    if fi.category in ("文档", "PDF") and fi.size > 10 * 1024:
+        if not is_junk and days_since_modified <= 180:
+            return "high", "近期的工作文档"
+
+    # 课程资料
+    if content_type == "课程资料" and content_confidence >= 0.2:
+        return "high", f"课程资料（{content_confidence:.0%}）"
+
+    # ── 中价值：一般文件 ────────────────────────────────
+
+    # 较旧的代码
     if fi.category == "代码":
-        days = config.thresholds.old_file_days if config else 180
-        if (datetime.now() - fi.modified).days < 90:
-            return "high", "近期修改的代码文件"
-        return "medium", "较旧的代码文件"
+        return "medium", "代码文件"
 
-    # 中价值：大尺寸媒体
+    # 文档/PDF（非垃圾）
+    if fi.category in ("文档", "PDF") and fi.size > 10 * 1024:
+        if is_junk:
+            return "medium", "文档但文件名含垃圾关键词"
+        return "medium", "文档文件"
+
+    # 大尺寸媒体（>5MB）
     if fi.category in ("图片", "视频") and fi.size > 5 * 1024 * 1024:
         return "medium", "大尺寸媒体文件"
 
-    # 中价值：安装包/压缩包
-    if fi.category in ("安装包", "压缩包"):
-        return "medium", "安装包或压缩包"
+    # 普通图片/视频
+    if fi.category in ("图片", "视频"):
+        return "medium", "媒体文件"
 
-    # 低价值：临时文件
+    # 音乐
+    if fi.category == "音乐":
+        return "medium", "音乐文件"
+
+    # 近期的压缩包（<30天，可能是工作文件）
+    if fi.category == "压缩包" and days_since_modified <= 30:
+        return "medium", "近期的压缩包"
+
+    # ── 低价值：可清理的文件 ────────────────────────────
+
+    # 临时文件
     if fi.category == "临时文件":
         return "low", "临时文件"
 
-    # 低价值：未知且极小
+    # 重复文件
+    if fi.is_duplicate:
+        return "low", "重复文件"
+
+    # 重复截图
+    if content_type == "截图" or fi.category == "截图":
+        if days_since_created > 7:
+            return "low", "旧截图"
+
+    # 过期安装包（>30天）
+    if fi.category == "安装包" and days_since_modified > 30:
+        return "low", "过期安装包"
+
+    # 过期压缩包（>180天）
+    if fi.category == "压缩包" and days_since_modified > 180:
+        return "low", "过期压缩包"
+
+    # 未知类型且极小
     if fi.category == "未知文件" and fi.size < 1024:
         return "low", "未知类型且极小的文件"
+
+    # 安装包（未过期）
+    if fi.category == "安装包":
+        return "low", "安装包"
+
+    # 垃圾关键词文件
+    if is_junk:
+        return "low", "文件名含垃圾关键词"
 
     return "medium", "一般文件"
 
