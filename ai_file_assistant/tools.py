@@ -25,6 +25,8 @@ def _serialize_file_info(fi) -> dict:
         "value": getattr(fi, "value", "medium"),
         "purpose": getattr(fi, "purpose", "unknown"),
         "risk": getattr(fi, "risk", "safe"),
+        "content_type": getattr(fi, "content_type", ""),
+        "content_confidence": getattr(fi, "content_confidence", 0.0),
         "reasoning": getattr(fi, "analysis_reasoning", ""),
         "is_duplicate": fi.is_duplicate,
         "modified": fi.modified.isoformat(),

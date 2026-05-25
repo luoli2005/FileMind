@@ -173,6 +173,16 @@ def print_analysis_insights(result):
         rtable.add_row(f"[{color}]{RISK_LABELS.get(risk, risk)}[/]", str(count))
     console.print(rtable)
 
+    # 内容识别
+    if hasattr(analysis, "content_stats") and analysis.content_stats:
+        console.print()
+        ctable = Table(title="AI 内容识别", box=box.SIMPLE)
+        ctable.add_column("文档类型", style="bold")
+        ctable.add_column("数量", justify="right")
+        for doc_type, count in sorted(analysis.content_stats.items(), key=lambda x: x[1], reverse=True):
+            ctable.add_row(doc_type, str(count))
+        console.print(ctable)
+
     # 策略建议
     if analysis.recommendations:
         console.print()

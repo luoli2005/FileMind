@@ -36,6 +36,8 @@ class FileAnalysis:
     confidence: float = 0.3
     reasoning: str = ""
     recommended_action: str = "archive"
+    content_type: str = ""
+    content_confidence: float = 0.0
 
 
 @dataclass
@@ -44,6 +46,7 @@ class AnalysisResult:
     value_stats: dict = field(default_factory=lambda: defaultdict(int))
     purpose_stats: dict = field(default_factory=lambda: defaultdict(int))
     risk_stats: dict = field(default_factory=lambda: defaultdict(int))
+    content_stats: dict = field(default_factory=lambda: defaultdict(int))
     high_value_files: list = field(default_factory=list)
     risky_files: list = field(default_factory=list)
     recommendations: list = field(default_factory=list)
@@ -162,7 +165,7 @@ def _determine_action(analysis: FileAnalysis) -> str:
 
 
 def analyze_file(fi, config=None) -> FileAnalysis:
-    """分析单个文件"""
+    """分析单个文件（含内容识别）"""
     value, value_reason = _assess_value(fi, config)
     purpose, confidence = _infer_purpose(fi)
     risk, risk_reason = _assess_risk(fi, config)
@@ -173,12 +176,28 @@ def analyze_file(fi, config=None) -> FileAnalysis:
     if risk_reason:
         reasoning_parts.append(f"风险: {risk_reason}")
 
+    # 内容识别（仅对文档/图片/PDF 类型）
+    content_type = ""
+    content_confidence = 0.0
+    if fi.category in ("文档", "PDF", "图片"):
+        try:
+            from .content_analyzer import analyze_content
+            matches = analyze_content(fi.path, fi.name)
+            if matches:
+                content_type = matches[0].doc_type
+                content_confidence = matches[0].confidence
+                reasoning_parts.append(f"内容: {content_type} ({content_confidence:.0%})")
+        except Exception:
+            pass
+
     analysis = FileAnalysis(
         value=value,
         purpose=purpose,
         risk=risk,
         confidence=confidence,
         reasoning=" | ".join(reasoning_parts),
+        content_type=content_type,
+        content_confidence=content_confidence,
     )
     analysis.recommended_action = _determine_action(analysis)
     return analysis
@@ -197,11 +216,16 @@ def analyze_directory(scan_result, config=None) -> AnalysisResult:
         fi.purpose = analysis.purpose
         fi.risk = analysis.risk
         fi.analysis_reasoning = analysis.reasoning
+        fi.content_type = analysis.content_type
+        fi.content_confidence = analysis.content_confidence
 
         # 统计
         result.value_stats[analysis.value] += 1
         result.purpose_stats[analysis.purpose] += 1
         result.risk_stats[analysis.risk] += 1
+
+        if analysis.content_type:
+            result.content_stats[analysis.content_type] += 1
 
         if analysis.value == "high":
             result.high_value_files.append((fi, analysis))

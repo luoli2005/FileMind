@@ -80,6 +80,8 @@ class FileInfo:
     purpose: str = "unknown"
     risk: str = "safe"
     analysis_reasoning: str = ""
+    content_type: str = ""
+    content_confidence: float = 0.0
 
     @property
     def size_str(self) -> str:
