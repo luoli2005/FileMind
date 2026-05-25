@@ -67,7 +67,11 @@ def print_scan_report(result):
     overview.add_column("值")
     overview.add_row("文件总数", f"[bold]{result.total_count}[/]")
     overview.add_row("大文件 (>100MB)", f"[yellow]{len(result.large_files)}[/]")
-    overview.add_row("重复文件组", f"[red]{len(result.duplicate_groups)}[/]")
+    overview.add_row("精确重复组", f"[red]{len(result.duplicate_groups)}[/]")
+    if hasattr(result, "similar_images") and result.similar_images:
+        overview.add_row("相似图片组", f"[yellow]{len(result.similar_images)}[/]")
+    if hasattr(result, "duplicate_videos") and result.duplicate_videos:
+        overview.add_row("重复视频组", f"[yellow]{len(result.duplicate_videos)}[/]")
     overview.add_row("可疑垃圾文件", f"[red]{len(result.suspicious_files)}[/]")
     overview.add_row("扫描错误", f"[dim]{len(result.errors)}[/]")
     console.print(overview)
@@ -100,16 +104,38 @@ def print_scan_report(result):
             ltable.add_row(fi.name, fi.size_str, str(fi.path.parent))
         console.print(ltable)
 
-    # 重复文件
+    # 精确重复文件
     if result.duplicate_groups:
         console.print()
-        console.print("[bold red]重复文件:[/]")
+        console.print("[bold red]精确重复文件:[/]")
         for gid, group in list(result.duplicate_groups.items())[:5]:
             console.print(f"  组 {gid}:")
             for fi in group:
                 console.print(f"    - {fi.name} ({fi.size_str}) [{fi.modified.strftime('%Y-%m-%d')}]")
         if len(result.duplicate_groups) > 5:
             console.print(f"  ... 还有 {len(result.duplicate_groups) - 5} 组")
+
+    # 相似图片
+    if hasattr(result, "similar_images") and result.similar_images:
+        console.print()
+        console.print("[bold yellow]相似图片:[/]")
+        for sg in result.similar_images[:5]:
+            console.print(f"  组 {sg.group_id} ({len(sg.files)} 张相似):")
+            for fi in sg.files:
+                console.print(f"    - {fi.name} ({fi.size_str}) [{fi.modified.strftime('%Y-%m-%d')}]")
+        if len(result.similar_images) > 5:
+            console.print(f"  ... 还有 {len(result.similar_images) - 5} 组")
+
+    # 重复视频
+    if hasattr(result, "duplicate_videos") and result.duplicate_videos:
+        console.print()
+        console.print("[bold yellow]重复视频:[/]")
+        for sg in result.duplicate_videos[:5]:
+            console.print(f"  组 {sg.group_id} ({len(sg.files)} 个相似):")
+            for fi in sg.files:
+                console.print(f"    - {fi.name} ({fi.size_str}) [{fi.modified.strftime('%Y-%m-%d')}]")
+        if len(result.duplicate_videos) > 5:
+            console.print(f"  ... 还有 {len(result.duplicate_videos) - 5} 组")
 
 
 def print_analysis_insights(result):

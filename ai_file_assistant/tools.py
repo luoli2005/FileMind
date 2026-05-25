@@ -198,14 +198,16 @@ def tool_rename(path: str, new_name: str, force: bool = False) -> dict:
 
 
 def tool_analyze_duplicates(path: str) -> dict:
-    """检测重复文件"""
+    """检测重复文件（精确哈希 + 相似图片 + 重复视频）"""
     try:
         config = get_config()
         result = scan_directory(path, config=config, skip_analysis=True)
 
+        # 精确重复
         groups = {}
         for gid, group in result.duplicate_groups.items():
             groups[gid] = {
+                "type": "exact",
                 "files": [_serialize_file_info(f) for f in group],
                 "size": group[0].size,
                 "size_str": group[0].size_str,
@@ -218,13 +220,41 @@ def tool_analyze_duplicates(path: str) -> dict:
             for group in result.duplicate_groups.values()
         )
 
+        # 相似图片
+        similar_images = []
+        for sg in result.similar_images:
+            similar_images.append({
+                "group_id": sg.group_id,
+                "type": sg.similarity_type,
+                "files": [_serialize_file_info(f) for f in sg.files],
+            })
+
+        # 重复视频
+        duplicate_videos = []
+        for sg in result.duplicate_videos:
+            duplicate_videos.append({
+                "group_id": sg.group_id,
+                "type": sg.similarity_type,
+                "files": [_serialize_file_info(f) for f in sg.files],
+            })
+
         return {
             "success": True,
             "data": {
-                "total_groups": len(groups),
-                "total_duplicate_files": sum(len(g["duplicates"]) for g in groups.values()),
-                "recoverable_space": format_size(total_dup_size),
-                "groups": groups,
+                "exact_duplicates": {
+                    "total_groups": len(groups),
+                    "total_files": sum(len(g["duplicates"]) for g in groups.values()),
+                    "recoverable_space": format_size(total_dup_size),
+                    "groups": groups,
+                },
+                "similar_images": {
+                    "total_groups": len(similar_images),
+                    "groups": similar_images,
+                },
+                "duplicate_videos": {
+                    "total_groups": len(duplicate_videos),
+                    "groups": duplicate_videos,
+                },
             },
             "warnings": [],
             "risk_level": "safe",

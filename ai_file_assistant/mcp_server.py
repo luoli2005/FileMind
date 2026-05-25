@@ -64,10 +64,12 @@ def rename_file(path: str, new_name: str, force: bool = False) -> str:
 
 @mcp.tool()
 def analyze_duplicate_files(path: str) -> str:
-    """检测目录中的重复文件。
+    """检测目录中的重复文件，包括精确重复、相似图片和重复视频。
 
-    使用两阶段检测：先按文件大小筛选候选，再用 MD5 哈希精检。
-    返回每组重复文件的详情和建议保留的版本（最新）。
+    三种检测模式：
+    1. 精确重复：MD5 哈希完全相同的文件
+    2. 相似图片：感知哈希 (pHash) 比对，识别裁剪、缩放、加水印后的副本
+    3. 重复视频：首帧哈希 + 元数据（时长、分辨率）比对
 
     Args:
         path: 要检测的目录路径

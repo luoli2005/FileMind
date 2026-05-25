@@ -106,6 +106,8 @@ class ScanResult:
     duplicate_groups: dict = field(default_factory=dict)
     suspicious_files: list = field(default_factory=list)
     errors: list = field(default_factory=list)
+    similar_images: list = field(default_factory=list)
+    duplicate_videos: list = field(default_factory=list)
     analysis: object = None
     value_stats: dict = field(default_factory=lambda: defaultdict(int))
     purpose_stats: dict = field(default_factory=lambda: defaultdict(int))
@@ -225,6 +227,11 @@ def scan_directory(target_dir: str, include_hidden: bool = False, config=None, s
                 for fi in hash_group:
                     fi.is_duplicate = True
                     fi.duplicate_group = dup_group_id
+
+    # 高级重复检测：相似图片 + 重复视频
+    from .duplicates import find_similar_images, find_duplicate_videos
+    result.similar_images = find_similar_images(result.files)
+    result.duplicate_videos = find_duplicate_videos(result.files)
 
     # 可疑垃圾文件
     for fi in result.files:
