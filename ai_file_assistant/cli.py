@@ -15,8 +15,8 @@ from .undo import (
 )
 from .reporter import (
     print_agent_greeting, print_scan_report, print_analysis_insights,
-    print_strategy_explanation, print_execution_logs, print_final_tree,
-    print_undo_history, print_undo_result, print_risk_warning,
+    print_strategy_explanation, print_execution_summary, print_execution_logs,
+    print_final_tree, print_undo_history, print_undo_result, print_risk_warning,
 )
 
 console = Console()
@@ -112,11 +112,12 @@ def agent(directory, hidden, config_path, time_archive):
         _handle_undo_menu(target)
         return
 
-    # 步骤 6: 风险确认
+    # 步骤 6: 执行摘要 + 风险确认
+    print_execution_summary(plan)
     print_risk_warning(plan)
 
     if choice == 2:
-        console.print("\n[bold cyan]🔍 预览模式 (--dry-run)，不会执行任何操作[/]\n")
+        console.print("\n[bold cyan]🔍 演练模式，不会执行任何操作[/]\n")
         logs = execute_plan(plan, dry_run=True)
         print_execution_logs(logs)
         return
@@ -215,10 +216,12 @@ def organize(directory, dry_run, hidden, yes, time_archive):
         console.print("[green]目录已经很整洁，无需整理！[/]")
         return
 
+    # 执行摘要：告诉用户将会发生什么
+    print_execution_summary(plan)
     print_risk_warning(plan)
 
     if dry_run:
-        console.print("\n[bold cyan]🔍 预览模式，不会执行任何操作[/]\n")
+        console.print("\n[bold cyan]🔍 演练模式，不会执行任何操作[/]\n")
         logs = execute_plan(plan, dry_run=True)
         print_execution_logs(logs)
         return

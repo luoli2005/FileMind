@@ -250,6 +250,44 @@ def print_strategy_explanation(plan):
     console.print(f"[bold]共计 [yellow]{total}[/] 个操作[/]")
 
 
+def print_execution_summary(plan):
+    """输出执行摘要（Dry Run 模式）"""
+    move_count = len(plan.actions)
+    rename_count = len(plan.rename_actions)
+    dup_count = len(plan.duplicate_actions)
+    folder_count = len(plan.folders_to_create)
+
+    lines = []
+    if move_count > 0:
+        lines.append(f"[cyan]移动[/] {move_count} 个文件")
+    if rename_count > 0:
+        lines.append(f"[cyan]重命名[/] {rename_count} 个文件")
+    if dup_count > 0:
+        lines.append(f"[cyan]归档[/] {dup_count} 个重复文件")
+    if folder_count > 0:
+        lines.append(f"[cyan]创建[/] {folder_count} 个文件夹")
+
+    content = "\n".join(f"  • {line}" for line in lines)
+    content += f"\n\n  [bold]共计 {move_count + rename_count + dup_count} 个操作[/]"
+
+    console.print()
+    console.print(Panel(
+        content,
+        title="[bold white] 将会执行 [/]",
+        border_style="yellow",
+    ))
+
+    # 显示将创建的目录
+    if plan.folders_to_create:
+        console.print()
+        console.print("[bold]新建目录:[/]")
+        for d in plan.folders_to_create[:10]:
+            rel = d.relative_to(plan.target_dir) if d != plan.target_dir else d.name
+            console.print(f"  📁 [dim]{rel}[/]")
+        if len(plan.folders_to_create) > 10:
+            console.print(f"  ... 还有 {len(plan.folders_to_create) - 10} 个目录")
+
+
 def print_execution_logs(logs, session_id=None):
     console.print()
     console.print(Panel.fit(

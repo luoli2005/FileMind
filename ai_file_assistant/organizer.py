@@ -24,6 +24,7 @@ class OrganizePlan:
     target_dir: Path = None
     warnings: list = field(default_factory=list)
     strategy_summary: str = ""
+    folders_to_create: list = field(default_factory=list)
 
 
 def detect_folder_type(target_dir: Path) -> str:
@@ -160,7 +161,25 @@ def build_organize_plan(scan_result, config=None) -> OrganizePlan:
             )
             plan.duplicate_actions.append(action)
 
-    # 4. 生成策略摘要
+    # 4. 计算需要创建的目录
+    all_destinations = set()
+    for action in plan.actions:
+        if action.destination:
+            all_destinations.add(action.destination.parent)
+    for action in plan.rename_actions:
+        if action.destination:
+            all_destinations.add(action.destination.parent)
+    for action in plan.duplicate_actions:
+        if action.destination:
+            all_destinations.add(action.destination.parent)
+
+    existing_dirs = set()
+    for d in all_destinations:
+        if d.exists():
+            existing_dirs.add(d)
+    plan.folders_to_create = sorted(all_destinations - existing_dirs)
+
+    # 5. 生成策略摘要
     plan.strategy_summary = _build_strategy_summary(scan_result, plan, target)
     plan.warnings = _build_warnings(plan)
 
