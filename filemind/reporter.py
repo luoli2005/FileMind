@@ -315,7 +315,7 @@ def print_execution_logs(logs, session_id=None):
     if session_id:
         console.print()
         console.print(f"[dim]操作已记录。如需撤销，运行:[/]")
-        console.print(f"  [cyan]python -m ai_file_assistant undo --session {session_id}[/]")
+        console.print(f"  [cyan]python -m filemind undo --session {session_id}[/]")
 
 
 def print_final_tree(target_dir, result):

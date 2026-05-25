@@ -11,7 +11,7 @@ except ImportError:
     yaml = None
 
 
-CONFIG_DIR = Path.home() / ".ai_file_assistant"
+CONFIG_DIR = Path.home() / ".filemind"
 CONFIG_PATH = CONFIG_DIR / "config.yaml"
 
 _instance: Optional["AppConfig"] = None

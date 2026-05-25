@@ -12,7 +12,7 @@ from .tools import (
     tool_create_folder,
 )
 
-mcp = FastMCP("AI文件助手")
+mcp = FastMCP("FileMind")
 
 
 @mcp.tool()

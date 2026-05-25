@@ -23,27 +23,27 @@ console = Console()
 
 BANNER = """
 ╔══════════════════════════════════════════════╗
-║          AI 文件助手 v2.1.0                  ║
-║      智能文件管理 Agent · 安全可靠           ║
+║           FileMind v2.1.0                    ║
+║      AI 文件管理 Agent · 安全可靠            ║
 ╚══════════════════════════════════════════════╝
 """
 
 
 @click.group(invoke_without_command=True)
 @click.pass_context
-@click.version_option(version="2.0.0", prog_name="AI 文件助手")
+@click.version_option(version="2.1.0", prog_name="FileMind")
 def cli(ctx):
-    """AI 文件助手 — 智能文件管理 Agent
+    """FileMind — AI 智能文件管理 Agent
 
     帮助你自动扫描、分析、分类、重命名和整理文件。
 
     \b
     使用示例:
-      python -m ai_file_assistant agent ~/Downloads
-      python -m ai_file_assistant scan ~/Downloads
-      python -m ai_file_assistant organize ~/Downloads --dry-run
-      python -m ai_file_assistant undo --list
-      python -m ai_file_assistant config --init
+      python -m filemind agent ~/Downloads
+      python -m filemind scan ~/Downloads
+      python -m filemind organize ~/Downloads --dry-run
+      python -m filemind undo --list
+      python -m filemind config --init
     """
     if ctx.invoked_subcommand is None:
         console.print(Panel(BANNER, border_style="cyan"))
@@ -348,9 +348,9 @@ def config(init_flag, show_flag, edit_flag):
 
     # 无参数：显示帮助
     console.print("[bold]配置命令:[/]")
-    console.print("  python -m ai_file_assistant config --init   初始化默认配置")
-    console.print("  python -m ai_file_assistant config --show   显示当前配置")
-    console.print("  python -m ai_file_assistant config --edit   编辑配置文件")
+    console.print("  python -m filemind config --init   初始化默认配置")
+    console.print("  python -m filemind config --show   显示当前配置")
+    console.print("  python -m filemind config --edit   编辑配置文件")
     console.print()
     console.print(f"[dim]配置文件路径: {CONFIG_PATH}[/]")
 

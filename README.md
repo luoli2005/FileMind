@@ -1,6 +1,6 @@
-# AI 文件助手 v2
+# FileMind
 
-具有自主决策能力的智能文件管理 Agent。帮助你自动扫描、分析、分类、重命名和整理电脑中的文件。
+AI 驱动的智能文件管理 Agent。自动扫描、分析、分类、重命名和整理电脑中的文件。
 
 ## 核心能力
 
@@ -28,7 +28,7 @@ pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 ```bash
 # 交互式智能整理
-python -m ai_file_assistant agent ~/Downloads
+python -m filemind agent ~/Downloads
 ```
 
 Agent 模式会：扫描 → 分析价值/用途/风险 → 生成策略 → 交互菜单 → 确认执行 → 记录审计日志
@@ -37,26 +37,26 @@ Agent 模式会：扫描 → 分析价值/用途/风险 → 生成策略 → 交
 
 ```bash
 # 扫描目录（只看报告，不动文件）
-python -m ai_file_assistant scan ~/Downloads
+python -m filemind scan ~/Downloads
 
 # 预览整理方案（dry-run）
-python -m ai_file_assistant organize ~/Downloads --dry-run
+python -m filemind organize ~/Downloads --dry-run
 
 # 执行整理
-python -m ai_file_assistant organize ~/Downloads
+python -m filemind organize ~/Downloads
 
 # 检测重复文件
-python -m ai_file_assistant duplicates ~/Downloads
+python -m filemind duplicates ~/Downloads
 
 # 撤销操作
-python -m ai_file_assistant undo --list           # 列出历史操作
-python -m ai_file_assistant undo --session abc123  # 撤销指定会话
-python -m ai_file_assistant undo ~/Downloads        # 撤销最近一次
+python -m filemind undo --list           # 列出历史操作
+python -m filemind undo --session abc123  # 撤销指定会话
+python -m filemind undo ~/Downloads        # 撤销最近一次
 
 # 配置管理
-python -m ai_file_assistant config --init  # 初始化默认配置
-python -m ai_file_assistant config --show  # 显示当前配置
-python -m ai_file_assistant config --edit  # 编辑配置文件
+python -m filemind config --init  # 初始化默认配置
+python -m filemind config --show  # 显示当前配置
+python -m filemind config --edit  # 编辑配置文件
 ```
 
 ## 智能分析
@@ -79,7 +79,7 @@ v2 新增三维分析能力：
 
 ## 配置文件
 
-配置路径：`~/.ai_file_assistant/config.yaml`
+配置路径：`~/.filemind/config.yaml`
 
 ```yaml
 thresholds:
@@ -101,7 +101,7 @@ classification:
 ## 项目结构
 
 ```
-ai_file_assistant/
+filemind/
 ├── __init__.py       # v2.0.0
 ├── __main__.py       # python -m 入口
 ├── cli.py            # 命令行（agent / scan / organize / undo / config）
@@ -116,8 +116,8 @@ ai_file_assistant/
 
 ## 数据目录
 
-- `~/.ai_file_assistant/config.yaml` — 用户配置
-- `~/.ai_file_assistant/undo_logs/` — 操作审计日志（JSON）
+- `~/.filemind/config.yaml` — 用户配置
+- `~/.filemind/undo_logs/` — 操作审计日志（JSON）
 
 ## License
 

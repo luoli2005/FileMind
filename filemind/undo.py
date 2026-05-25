@@ -8,7 +8,7 @@ from datetime import datetime
 from dataclasses import dataclass, field, asdict
 from typing import Optional
 
-UNDO_DIR = Path.home() / ".ai_file_assistant" / "undo_logs"
+UNDO_DIR = Path.home() / ".filemind" / "undo_logs"
 
 
 @dataclass
