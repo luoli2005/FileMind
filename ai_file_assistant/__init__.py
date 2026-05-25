@@ -1,3 +1,3 @@
-"""AI File Assistant - 智能文件整理助手"""
+"""AI File Assistant - 智能文件管理 Agent"""
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"

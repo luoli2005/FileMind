@@ -73,18 +73,22 @@ class FileInfo:
     created: datetime
     modified: datetime
     category: str = "未知文件"
-    suggested_name: str = ""
     hash: str = ""
     is_duplicate: bool = False
     duplicate_group: int = -1
+    value: str = "medium"
+    purpose: str = "unknown"
+    risk: str = "safe"
+    analysis_reasoning: str = ""
 
     @property
     def size_str(self) -> str:
+        size = self.size
         for unit in ("B", "KB", "MB", "GB"):
-            if self.size < 1024:
-                return f"{self.size:.1f} {unit}"
-            self.size /= 1024
-        return f"{self.size:.1f} TB"
+            if size < 1024:
+                return f"{size:.1f} {unit}"
+            size /= 1024
+        return f"{size:.1f} TB"
 
     @property
     def parent_dir(self) -> str:
@@ -102,6 +106,10 @@ class ScanResult:
     duplicate_groups: dict = field(default_factory=dict)
     suspicious_files: list = field(default_factory=list)
     errors: list = field(default_factory=list)
+    analysis: object = None
+    value_stats: dict = field(default_factory=lambda: defaultdict(int))
+    purpose_stats: dict = field(default_factory=lambda: defaultdict(int))
+    risk_stats: dict = field(default_factory=lambda: defaultdict(int))
 
 
 # ── 扫描器 ────────────────────────────────────────────────────
@@ -126,10 +134,6 @@ def classify_file(file_info: FileInfo) -> str:
         if ext in extensions:
             return category
 
-    # 截图启发式：IMG_ 开头的 png/jpg 大概率是截图
-    if ext in {".png", ".jpg", ".jpeg"} and name_lower.startswith(("img_", "dsc_", "dscn")):
-        return "截图"
-
     return "未知文件"
 
 
@@ -145,8 +149,14 @@ def compute_file_hash(filepath: Path, chunk_size: int = 8192) -> str:
         return ""
 
 
-def scan_directory(target_dir: str, include_hidden: bool = False) -> ScanResult:
+def scan_directory(target_dir: str, include_hidden: bool = False, config=None, skip_analysis: bool = False) -> ScanResult:
     """扫描目录，返回完整的扫描结果"""
+    from .config import get_config
+    from .analyzer import analyze_directory
+
+    if config is None:
+        config = get_config()
+
     target = Path(target_dir).expanduser().resolve()
     if not target.exists():
         raise FileNotFoundError(f"目录不存在: {target}")
@@ -154,17 +164,18 @@ def scan_directory(target_dir: str, include_hidden: bool = False) -> ScanResult:
         raise NotADirectoryError(f"不是目录: {target}")
 
     result = ScanResult(target_dir=target)
-    size_groups = defaultdict(list)  # size -> [FileInfo] 用于快速筛选候选重复
+    size_groups = defaultdict(list)
 
-    for root, dirs, files in os.walk(target):
+    large_threshold = config.thresholds.large_file_mb * 1024 * 1024
+    junk_keywords = config.classification.junk_keywords
+
+    for root, dirs, files in os.walk(target, followlinks=False):
         root_path = Path(root)
 
-        # 跳过隐藏目录
         if not include_hidden:
             dirs[:] = [d for d in dirs if not d.startswith(".")]
 
         for fname in files:
-            # 跳过隐藏文件
             if not include_hidden and fname.startswith("."):
                 continue
 
@@ -187,23 +198,20 @@ def scan_directory(target_dir: str, include_hidden: bool = False) -> ScanResult:
                 result.category_stats[fi.category] += 1
                 result.category_sizes[fi.category] += fi.size
 
-                # 大文件 (>100MB)
-                if fi.size > 100 * 1024 * 1024:
+                if fi.size > large_threshold:
                     result.large_files.append(fi)
 
-                # 按大小分组（重复文件快速筛选）
                 if fi.size > 0:
                     size_groups[fi.size].append(fi)
 
             except (OSError, PermissionError) as e:
                 result.errors.append(f"无法读取: {fpath} ({e})")
 
-    # 重复文件检测：先按大小筛选候选，再算哈希
+    # 重复文件检测
     dup_group_id = 0
     for size, group in size_groups.items():
         if len(group) < 2:
             continue
-        # 计算哈希
         hash_groups = defaultdict(list)
         for fi in group:
             if not fi.hash:
@@ -219,10 +227,6 @@ def scan_directory(target_dir: str, include_hidden: bool = False) -> ScanResult:
                     fi.duplicate_group = dup_group_id
 
     # 可疑垃圾文件
-    junk_keywords = [
-        "copy", "副本", "backup", "bak", "old", "temp",
-        "untitled", "新建", "未命名", "test", "debug",
-    ]
     for fi in result.files:
         name_lower = fi.name.lower()
         if any(kw in name_lower for kw in junk_keywords):
@@ -230,7 +234,13 @@ def scan_directory(target_dir: str, include_hidden: bool = False) -> ScanResult:
         elif fi.category == "临时文件":
             result.suspicious_files.append(fi)
 
-    # 按分类排序
     result.files.sort(key=lambda f: (f.category, f.name.lower()))
+
+    # 智能分析
+    if not skip_analysis:
+        result.analysis = analyze_directory(result, config)
+        result.value_stats = result.analysis.value_stats
+        result.purpose_stats = result.analysis.purpose_stats
+        result.risk_stats = result.analysis.risk_stats
 
     return result
