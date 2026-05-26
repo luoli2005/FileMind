@@ -13,6 +13,7 @@ from .tools import (
     tool_get_memory,
     tool_record_feedback,
 )
+from .agent_loop import run_agent
 
 mcp = FastMCP("FileMind")
 
@@ -135,6 +136,44 @@ def record_feedback(operation_type: str, target: str, accepted: bool) -> str:
     """
     result = tool_record_feedback(operation_type, target, accepted)
     return json.dumps(result, ensure_ascii=False, indent=2)
+
+
+@mcp.tool()
+def autonomous_agent(
+    directory: str,
+    goal: str = "整理这个目录，清理垃圾文件，分类归档",
+    provider: str = "claude",
+    model: str = "",
+    max_rounds: int = 20,
+    auto_confirm: bool = False,
+) -> str:
+    """启动自主 Agent，由 LLM 自动规划和执行文件整理任务。
+
+    给定一个目录和目标，Agent 会自动：扫描分析 → 制定策略 → 逐步执行 → 生成报告。
+
+    Args:
+        directory: 目标目录路径
+        goal: 任务目标描述（如"清理垃圾文件，按类型归档"）
+        provider: LLM 提供商，可选 claude / gpt / deepseek
+        model: 模型名称（留空使用默认模型）
+        max_rounds: 最大对话轮次（默认 20）
+        auto_confirm: 是否自动确认所有操作（默认 false，高风险操作仍需确认）
+    """
+    result = run_agent(
+        target_dir=directory,
+        goal=goal,
+        provider=provider,
+        model=model or None,
+        max_rounds=max_rounds,
+        auto_confirm=auto_confirm,
+    )
+    return json.dumps({
+        "success": result.success,
+        "total_rounds": result.total_rounds,
+        "total_tokens": result.total_tokens,
+        "summary": result.summary,
+        "logs": result.logs[-20:],  # 最多返回最后 20 条日志
+    }, ensure_ascii=False, indent=2)
 
 
 def run_stdio():

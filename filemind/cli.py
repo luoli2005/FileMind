@@ -393,6 +393,56 @@ def config(init_flag, show_flag, edit_flag):
     console.print(f"[dim]配置文件路径: {CONFIG_PATH}[/]")
 
 
+# ── Auto 命令（自主 Agent）────────────────────────────────
+
+@cli.command()
+@click.argument("directory", type=click.Path(exists=True, file_okay=False))
+@click.option("--goal", "-g", default="整理这个目录，清理垃圾文件，分类归档", help="任务目标")
+@click.option("--provider", "-p", type=click.Choice(["claude", "gpt", "deepseek"]), default="claude", help="LLM 提供商")
+@click.option("--model", "-m", default=None, help="模型名称（默认使用各 provider 推荐模型）")
+@click.option("--api-key", default=None, help="API Key（也可通过环境变量设置）")
+@click.option("--max-rounds", default=20, help="最大对话轮次")
+@click.option("--yes", "-y", is_flag=True, help="自动确认所有操作（包括高风险）")
+def auto(directory, goal, provider, model, api_key, max_rounds, yes):
+    """启动自主 Agent（LLM 驱动，自动规划执行）"""
+    from .agent_loop import run_agent
+
+    target = str(Path(directory).expanduser().resolve())
+    console.print(Panel.fit(
+        f"[bold]自主 Agent 模式[/]\n"
+        f"目录: {target}\n"
+        f"目标: {goal}\n"
+        f"模型: {provider}/{model or 'default'}\n"
+        f"最大轮次: {max_rounds}",
+        title="[bold white] FileMind Auto [/]",
+        border_style="magenta",
+    ))
+
+    result = run_agent(
+        target_dir=target,
+        goal=goal,
+        provider=provider,
+        model=model,
+        api_key=api_key,
+        max_rounds=max_rounds,
+        auto_confirm=yes,
+        console=console,
+    )
+
+    if result.success:
+        console.print(Panel.fit(
+            f"[bold green]Agent 完成[/]\n"
+            f"轮次: {result.total_rounds}\n"
+            f"Token: {result.total_tokens}",
+            border_style="green",
+        ))
+    else:
+        console.print(Panel.fit(
+            f"[bold red]Agent 异常退出[/]\n{result.summary}",
+            border_style="red",
+        ))
+
+
 # ── Memory 命令 ───────────────────────────────────────────
 
 @cli.command()
