@@ -95,7 +95,6 @@ class AnalysisConfig:
 class LLMConfig:
     provider: str = "claude"  # claude / gpt / deepseek
     model: str = ""  # 留空使用各 provider 默认模型
-    api_key: str = ""  # 留空从环境变量读取
     max_rounds: int = 20
     auto_confirm: bool = False
 

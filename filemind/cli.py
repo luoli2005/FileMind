@@ -42,7 +42,9 @@ def cli(ctx):
       python -m filemind agent ~/Downloads
       python -m filemind scan ~/Downloads
       python -m filemind organize ~/Downloads --dry-run
+      python -m filemind auto ~/Downloads -g "整理目录"
       python -m filemind undo --list
+      python -m filemind secrets --list
       python -m filemind config --init
     """
     if ctx.invoked_subcommand is None:
@@ -400,10 +402,9 @@ def config(init_flag, show_flag, edit_flag):
 @click.option("--goal", "-g", default="整理这个目录，清理垃圾文件，分类归档", help="任务目标")
 @click.option("--provider", "-p", type=click.Choice(["claude", "gpt", "deepseek"]), default="claude", help="LLM 提供商")
 @click.option("--model", "-m", default=None, help="模型名称（默认使用各 provider 推荐模型）")
-@click.option("--api-key", default=None, help="API Key（也可通过环境变量设置）")
 @click.option("--max-rounds", default=20, help="最大对话轮次")
 @click.option("--yes", "-y", is_flag=True, help="自动确认所有操作（包括高风险）")
-def auto(directory, goal, provider, model, api_key, max_rounds, yes):
+def auto(directory, goal, provider, model, max_rounds, yes):
     """启动自主 Agent（LLM 驱动，自动规划执行）"""
     from .agent_loop import run_agent
 
@@ -423,7 +424,6 @@ def auto(directory, goal, provider, model, api_key, max_rounds, yes):
         goal=goal,
         provider=provider,
         model=model,
-        api_key=api_key,
         max_rounds=max_rounds,
         auto_confirm=yes,
         console=console,
@@ -441,6 +441,47 @@ def auto(directory, goal, provider, model, api_key, max_rounds, yes):
             f"[bold red]Agent 异常退出[/]\n{result.summary}",
             border_style="red",
         ))
+
+
+# ── Secrets 命令 ───────────────────────────────────────────
+
+@cli.command()
+@click.option("--list", "list_flag", is_flag=True, help="列出已配置的 API Key")
+@click.option("--set", "set_provider", type=click.Choice(["claude", "gpt", "deepseek"]), help="设置指定 provider 的 API Key")
+@click.option("--remove", "remove_provider", type=click.Choice(["claude", "gpt", "deepseek"]), help="移除指定 provider 的 API Key")
+def secrets(list_flag, set_provider, remove_provider):
+    """管理 API Key（安全存储在 ~/.filemind/.env）"""
+    from .secrets import get_api_key, remove_api_key, list_configured_keys, PROVIDER_NAMES
+
+    if list_flag:
+        keys = list_configured_keys()
+        console.print("[bold]API Key 配置:[/]\n")
+        for provider, info in keys.items():
+            name = PROVIDER_NAMES.get(provider, provider)
+            source = f"[dim]({info['source']})[/]" if info["source"] else ""
+            status = f"[green]{info['masked']}[/]" if info["masked"] != "未配置" else "[dim]未配置[/]"
+            console.print(f"  {name:<20} {status} {source}")
+        console.print(f"\n[dim]存储位置: ~/.filemind/.env[/]")
+        return
+
+    if set_provider:
+        get_api_key(set_provider, prompt_if_missing=True)
+        return
+
+    if remove_provider:
+        name = PROVIDER_NAMES.get(remove_provider, remove_provider)
+        if Confirm.ask(f"确认移除 {name} 的 API Key？"):
+            remove_api_key(remove_provider)
+            console.print(f"[green]已移除 {name} 的 API Key[/]")
+        return
+
+    # 无参数：显示帮助
+    console.print("[bold]API Key 管理命令:[/]")
+    console.print("  python -m filemind secrets --list      列出已配置的 Key")
+    console.print("  python -m filemind secrets --set claude  设置 Claude API Key")
+    console.print("  python -m filemind secrets --remove gpt  移除 GPT API Key")
+    console.print()
+    console.print("[dim]API Key 安全存储在 ~/.filemind/.env（已在 .gitignore 中）[/]")
 
 
 # ── Memory 命令 ───────────────────────────────────────────

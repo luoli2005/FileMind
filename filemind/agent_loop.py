@@ -205,6 +205,11 @@ class ClaudeProvider(LLMProvider):
             import anthropic
         except ImportError:
             raise RuntimeError("需要安装 anthropic: pip install anthropic")
+        if not api_key:
+            from .secrets import get_api_key
+            api_key = get_api_key("claude")
+        if not api_key:
+            raise RuntimeError("未配置 Anthropic API Key")
         self.client = anthropic.Anthropic(api_key=api_key)
         self.model = model
 
@@ -234,14 +239,17 @@ class ClaudeProvider(LLMProvider):
 class OpenAIProvider(LLMProvider):
     """OpenAI GPT / DeepSeek（共用 OpenAI SDK）"""
 
-    def __init__(self, model: str = "gpt-4o", api_key: str = None, base_url: str = None):
+    def __init__(self, model: str = "gpt-4o", api_key: str = None, base_url: str = None, provider_name: str = "gpt"):
         try:
             from openai import OpenAI
         except ImportError:
             raise RuntimeError("需要安装 openai: pip install openai")
-        kwargs = {}
-        if api_key:
-            kwargs["api_key"] = api_key
+        if not api_key:
+            from .secrets import get_api_key
+            api_key = get_api_key(provider_name)
+        if not api_key:
+            raise RuntimeError(f"未配置 {provider_name} API Key")
+        kwargs = {"api_key": api_key}
         if base_url:
             kwargs["base_url"] = base_url
         self.client = OpenAI(**kwargs)
@@ -334,11 +342,11 @@ class DeepSeekProvider(OpenAIProvider):
     """DeepSeek（通过 OpenAI 兼容 API）"""
 
     def __init__(self, model: str = "deepseek-chat", api_key: str = None):
-        import os
         super().__init__(
             model=model,
-            api_key=api_key or os.environ.get("DEEPSEEK_API_KEY"),
+            api_key=api_key,
             base_url="https://api.deepseek.com",
+            provider_name="deepseek",
         )
 
 
