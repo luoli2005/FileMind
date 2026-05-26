@@ -224,7 +224,19 @@ def _clean_strategy(fi) -> str:
     # 通用
     cleaned = clean_name(stem)
     if cleaned and cleaned != stem and len(cleaned) > 2:
-        return f"{cleaned}{ext}"
+        new_name = f"{cleaned}{ext}"
+        # Check memory: skip rename if user consistently rejects this pattern
+        try:
+            from .memory import get_rename_bias
+            import re as _re
+            pattern = _re.sub(r"\d{4}-\d{2}-\d{2}", "{date}", Path(new_name).stem)
+            pattern = _re.sub(r"\d{8}", "{date}", pattern)
+            pattern = _re.sub(r"\d{6}", "{time}", pattern)
+            if get_rename_bias(pattern) < 0.3:
+                return ""
+        except Exception:
+            pass
+        return new_name
 
     return ""
 

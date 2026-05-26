@@ -100,6 +100,12 @@ def tool_move(src: str, dst: str, force: bool = False) -> dict:
     risk = _risk_from_path(src)
 
     if risk == "risky" and not force:
+        # Record risk rejection to memory
+        try:
+            from .memory import record_risk_decision
+            record_risk_decision(risk, accepted=False)
+        except Exception:
+            pass
         return {
             "success": False,
             "error": "高风险操作，需要确认",
@@ -130,6 +136,13 @@ def tool_move(src: str, dst: str, force: bool = False) -> dict:
         ))
         save_session(session)
 
+        # Record risk acceptance to memory
+        try:
+            from .memory import record_risk_decision
+            record_risk_decision(risk, accepted=True)
+        except Exception:
+            pass
+
         return {
             "success": True,
             "data": {
@@ -156,6 +169,12 @@ def tool_rename(path: str, new_name: str, force: bool = False) -> dict:
     risk = _risk_from_path(path)
 
     if risk == "risky" and not force:
+        # Record risk rejection to memory
+        try:
+            from .memory import record_risk_decision
+            record_risk_decision(risk, accepted=False)
+        except Exception:
+            pass
         return {
             "success": False,
             "error": "高风险操作，需要确认",
@@ -183,6 +202,13 @@ def tool_rename(path: str, new_name: str, force: bool = False) -> dict:
             status="success",
         ))
         save_session(session)
+
+        # Record risk acceptance to memory
+        try:
+            from .memory import record_risk_decision
+            record_risk_decision(risk, accepted=True)
+        except Exception:
+            pass
 
         return {
             "success": True,
@@ -317,5 +343,66 @@ def tool_create_folder(path: str) -> dict:
             "risk_level": "safe",
             "undo_session_id": None,
         }
+    except Exception as e:
+        return {"success": False, "error": str(e), "data": None}
+
+
+def tool_get_memory() -> dict:
+    """返回当前学习记忆状态"""
+    try:
+        from .memory import get_memory, format_memory_summary
+        mem = get_memory()
+        return {
+            "success": True,
+            "data": {
+                "summary": format_memory_summary(mem),
+                "total_signals": mem.total_signals,
+                "last_updated": mem.last_updated,
+                "junk_keywords_count": len(mem.junk_keywords),
+                "keep_keywords_count": len(mem.keep_keywords),
+                "category_preferences_count": len(mem.category_preferences),
+                "rename_patterns_count": len(mem.rename_patterns),
+            },
+            "warnings": [],
+            "risk_level": "safe",
+            "undo_session_id": None,
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e), "data": None}
+
+
+def tool_record_feedback(operation_type: str, target: str, accepted: bool) -> dict:
+    """显式记录用户反馈"""
+    try:
+        from .memory import (
+            record_junk_signal, record_keep_signal,
+            record_category_preference, record_rename_signal,
+            record_risk_decision, record_purpose_keyword,
+        )
+        if operation_type == "junk_keyword":
+            record_junk_signal(target, accepted)
+        elif operation_type == "keep_keyword":
+            record_keep_signal(target, accepted)
+        elif operation_type == "category_preference":
+            # target format: "category|folder"
+            parts = target.split("|", 1)
+            if len(parts) == 2:
+                record_category_preference(parts[0], parts[1], accepted)
+            else:
+                return {"success": False, "error": "target 格式应为 'category|folder'", "data": None}
+        elif operation_type == "rename_pattern":
+            record_rename_signal(target, accepted)
+        elif operation_type == "risk_decision":
+            record_risk_decision(target, accepted)
+        elif operation_type == "purpose_keyword":
+            # target format: "purpose|keyword"
+            parts = target.split("|", 1)
+            if len(parts) == 2:
+                record_purpose_keyword(parts[0], parts[1])
+            else:
+                return {"success": False, "error": "target 格式应为 'purpose|keyword'", "data": None}
+        else:
+            return {"success": False, "error": f"未知操作类型: {operation_type}", "data": None}
+        return {"success": True, "data": {"recorded": True}, "warnings": [], "risk_level": "safe", "undo_session_id": None}
     except Exception as e:
         return {"success": False, "error": str(e), "data": None}

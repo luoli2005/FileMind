@@ -123,6 +123,18 @@ def agent(directory, hidden, config_path, time_archive):
         return
 
     if not Confirm.ask("[bold]确认执行以上整理方案？[/]", default=False):
+        # Record plan rejection to memory
+        try:
+            from .memory import record_session_feedback
+            _ops = []
+            for a in plan.actions + plan.rename_actions + plan.duplicate_actions:
+                _ops.append(type("Op", (), {
+                    "status": "success", "operation": a.action_type,
+                    "source": str(a.source), "destination": str(a.destination),
+                })())
+            record_session_feedback(_ops, accepted=False)
+        except Exception:
+            pass
         console.print("[yellow]已取消。[/]")
         return
 
@@ -131,6 +143,13 @@ def agent(directory, hidden, config_path, time_archive):
     logs = execute_plan(plan, dry_run=False, undo_session=undo_sess)
     save_session(undo_sess)
     print_execution_logs(logs, session_id=undo_sess.session_id)
+
+    # Record plan acceptance to memory
+    try:
+        from .memory import record_session_feedback
+        record_session_feedback(undo_sess.operations, accepted=True)
+    except Exception:
+        pass
 
     # 步骤 8: 最终报告
     with console.status("[bold green]生成最终报告..."):
@@ -229,6 +248,18 @@ def organize(directory, dry_run, hidden, yes, time_archive):
     if not yes:
         console.print()
         if not Confirm.ask("[bold]确认执行以上整理方案？[/]", default=False):
+            # Record plan rejection to memory
+            try:
+                from .memory import record_session_feedback
+                _ops = []
+                for a in plan.actions + plan.rename_actions + plan.duplicate_actions:
+                    _ops.append(type("Op", (), {
+                        "status": "success", "operation": a.action_type,
+                        "source": str(a.source), "destination": str(a.destination),
+                    })())
+                record_session_feedback(_ops, accepted=False)
+            except Exception:
+                pass
             console.print("[yellow]已取消。[/]")
             return
 
@@ -236,6 +267,13 @@ def organize(directory, dry_run, hidden, yes, time_archive):
     logs = execute_plan(plan, dry_run=False, undo_session=undo_sess)
     save_session(undo_sess)
     print_execution_logs(logs, session_id=undo_sess.session_id)
+
+    # Record plan acceptance to memory
+    try:
+        from .memory import record_session_feedback
+        record_session_feedback(undo_sess.operations, accepted=True)
+    except Exception:
+        pass
 
     with console.status("[bold green]生成最终报告..."):
         final_result = scan_directory(str(target), include_hidden=hidden, config=config, skip_analysis=True)
@@ -353,6 +391,27 @@ def config(init_flag, show_flag, edit_flag):
     console.print("  python -m filemind config --edit   编辑配置文件")
     console.print()
     console.print(f"[dim]配置文件路径: {CONFIG_PATH}[/]")
+
+
+# ── Memory 命令 ───────────────────────────────────────────
+
+@cli.command()
+@click.option("--show", "show_flag", is_flag=True, help="显示学习记忆")
+@click.option("--clear", "clear_flag", is_flag=True, help="清除所有学习记忆")
+def memory(show_flag, clear_flag):
+    """查看和管理学习记忆"""
+    from .memory import get_memory, save_memory, format_memory_summary, reset_memory, MemoryStore
+
+    if clear_flag:
+        if Confirm.ask("确认清除所有学习记忆？"):
+            reset_memory()
+            save_memory(MemoryStore())
+            console.print("[green]记忆已清除。[/]")
+        return
+
+    # Default: show
+    mem = get_memory()
+    console.print(format_memory_summary(mem))
 
 
 # ── Serve 命令 ────────────────────────────────────────────

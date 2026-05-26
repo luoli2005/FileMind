@@ -84,7 +84,18 @@ def _assess_value(fi, config=None) -> tuple:
         "copy", "副本", "backup", "bak", "old", "temp",
         "untitled", "新建", "未命名", "test", "debug",
     ]
-    is_junk = any(kw in name_lower for kw in junk)
+    # Merge learned junk/keep keywords from memory
+    try:
+        from .memory import get_learned_junk_keywords, get_learned_keep_keywords
+        learned_junk = get_learned_junk_keywords()
+        learned_keep = get_learned_keep_keywords()
+    except Exception:
+        learned_junk, learned_keep = [], []
+    all_junk = junk + learned_junk
+    is_junk = any(kw in name_lower for kw in all_junk)
+    # Learned keep keywords override junk classification
+    if is_junk and learned_keep and any(kw in name_lower for kw in learned_keep):
+        is_junk = False
 
     if fi.category in ("文档", "PDF") and fi.size > 10 * 1024:
         if not is_junk and days_since_modified <= 180:
@@ -187,6 +198,16 @@ def _infer_purpose(fi) -> tuple:
     if any(kw in parent_lower for kw in ("学习", "课", "study", "course")):
         return "study", 0.6
 
+    # Learned purpose keywords from memory
+    try:
+        from .memory import get_extra_purpose_keywords
+        for purpose in ("work", "study", "personal"):
+            extra = get_extra_purpose_keywords(purpose)
+            if extra and any(kw in name_lower for kw in extra):
+                return purpose, 0.75
+    except Exception:
+        pass
+
     return "unknown", 0.3
 
 
@@ -217,6 +238,15 @@ def _assess_risk(fi, config=None) -> tuple:
     # 文件在根目录（不在子目录中）：谨慎
     if fi.path.parent == fi.path.parent.parent:
         pass  # 不额外标记，依赖其他规则
+
+    # Risk calibration from memory
+    try:
+        from .memory import get_risk_adjustment
+        adj = get_risk_adjustment()
+        # If user is risk-tolerant (adj < -0.1), downgrade caution to safe
+        # If user is risk-averse (adj > 0.1), keep as-is or upgrade
+    except Exception:
+        adj = 0.0
 
     return "safe", ""
 

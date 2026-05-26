@@ -167,6 +167,14 @@ def undo_session(session_id: str, dry_run: bool = False) -> list:
             else:
                 logs.append(f"[SKIP] 文件已不存在: {dest or source}")
 
+    # Record undo as rejection signal for memory
+    if not dry_run:
+        try:
+            from .memory import record_session_feedback
+            record_session_feedback(session.operations, accepted=False)
+        except Exception:
+            pass  # Memory is optional, never break undo
+
     return logs
 
 

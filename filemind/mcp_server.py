@@ -10,6 +10,8 @@ from .tools import (
     tool_analyze_duplicates,
     tool_generate_report,
     tool_create_folder,
+    tool_get_memory,
+    tool_record_feedback,
 )
 
 mcp = FastMCP("FileMind")
@@ -100,6 +102,38 @@ def create_folder(path: str) -> str:
         path: 要创建的目录路径
     """
     result = tool_create_folder(path)
+    return json.dumps(result, ensure_ascii=False, indent=2)
+
+
+@mcp.tool()
+def get_learned_memory() -> str:
+    """查看 FileMind 从历史操作中学到了什么。
+
+    返回学习到的垃圾关键词、分类偏好、重命名模式和风险校准数据。
+    用于理解 FileMind 为什么做出某些决策。
+    """
+    result = tool_get_memory()
+    return json.dumps(result, ensure_ascii=False, indent=2)
+
+
+@mcp.tool()
+def record_feedback(operation_type: str, target: str, accepted: bool) -> str:
+    """显式记录用户反馈，教 FileMind 你的偏好。
+
+    无需通过 organize/undo 流程，直接告诉 FileMind 你的偏好。
+
+    Args:
+        operation_type: 操作类型，可选值：
+            - "junk_keyword": 垃圾关键词（target 为关键词）
+            - "keep_keyword": 重要关键词（target 为关键词）
+            - "category_preference": 分类偏好（target 格式为 "category|folder"）
+            - "rename_pattern": 重命名模式（target 为模式字符串）
+            - "risk_decision": 风险决策（target 为风险等级）
+            - "purpose_keyword": 用途关键词（target 格式为 "purpose|keyword"）
+        target: 关键词、模式或 "category|folder" 字符串
+        accepted: 是否接受
+    """
+    result = tool_record_feedback(operation_type, target, accepted)
     return json.dumps(result, ensure_ascii=False, indent=2)
 
 

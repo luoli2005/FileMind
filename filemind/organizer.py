@@ -98,6 +98,12 @@ def build_organize_plan(scan_result, config=None) -> OrganizePlan:
     def _get_dest_dir(fi) -> Path:
         """计算目标目录（含时间归档）"""
         dest_dir_name = category_to_dir.get(fi.category, "Others")
+        # Check memory for user's preferred folder for this category
+        try:
+            from .memory import get_preferred_folder
+            dest_dir_name = get_preferred_folder(fi.category, dest_dir_name)
+        except Exception:
+            pass
         dest_dir = target / dest_dir_name
         # 时间归档：为指定类别添加 year/month 子目录
         if time_archive and fi.category in time_categories:
