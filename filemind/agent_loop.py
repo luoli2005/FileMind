@@ -260,53 +260,80 @@ class OpenAIProvider(LLMProvider):
         oai_messages = []
         if system:
             oai_messages.append({"role": "system", "content": system})
-        for msg in messages:
+
+        i = 0
+        while i < len(messages):
+            msg = messages[i]
             role = msg["role"]
             content = msg["content"]
+
             if isinstance(content, str):
                 oai_messages.append({"role": role, "content": content})
             elif isinstance(content, list):
-                # Convert from Anthropic format
-                parts = []
-                for block in content:
-                    if isinstance(block, dict):
-                        if block.get("type") == "text":
-                            parts.append({"type": "text", "text": block["text"]})
-                        elif block.get("type") == "tool_use":
-                            parts.append({
-                                "type": "function",
-                                "function": {
-                                    "name": block["name"],
-                                    "arguments": json.dumps(block["input"], ensure_ascii=False),
-                                }
-                            })
-                        elif block.get("type") == "tool_result":
-                            parts.append({
-                                "type": "function",
-                                "name": block.get("name", ""),
-                                "content": block.get("content", ""),
-                            })
-                    elif hasattr(block, "type"):
-                        if block.type == "text":
-                            parts.append({"type": "text", "text": block.text})
-                        elif block.type == "tool_use":
-                            parts.append({
-                                "type": "function",
-                                "function": {
-                                    "name": block.name,
-                                    "arguments": json.dumps(block.input, ensure_ascii=False),
-                                }
-                            })
-                        elif block.type == "tool_result":
-                            parts.append({
-                                "type": "function",
-                                "name": getattr(block, "name", ""),
-                                "content": block.content,
-                            })
-                if len(parts) == 1 and parts[0].get("type") == "text":
-                    oai_messages.append({"role": role, "content": parts[0]["text"]})
-                else:
-                    oai_messages.append({"role": role, "content": parts})
+                if role == "assistant":
+                    # Assistant message with tool_use blocks
+                    text_parts = []
+                    tool_calls = []
+                    for block in content:
+                        if hasattr(block, "type"):
+                            if block.type == "text":
+                                text_parts.append(block.text)
+                            elif block.type == "tool_use":
+                                tool_calls.append({
+                                    "id": block.id,
+                                    "type": "function",
+                                    "function": {
+                                        "name": block.name,
+                                        "arguments": json.dumps(block.input, ensure_ascii=False),
+                                    }
+                                })
+                        elif isinstance(block, dict):
+                            if block.get("type") == "text":
+                                text_parts.append(block["text"])
+                            elif block.get("type") == "tool_use":
+                                tool_calls.append({
+                                    "id": block["id"],
+                                    "type": "function",
+                                    "function": {
+                                        "name": block["name"],
+                                        "arguments": json.dumps(block["input"], ensure_ascii=False),
+                                    }
+                                })
+                    assistant_msg = {"role": "assistant", "content": "\n".join(text_parts) if text_parts else None}
+                    if tool_calls:
+                        assistant_msg["tool_calls"] = tool_calls
+                    oai_messages.append(assistant_msg)
+
+                elif role == "user":
+                    # Check if this is a tool_result message
+                    tool_results = []
+                    other_parts = []
+                    for block in content:
+                        if isinstance(block, dict):
+                            if block.get("type") == "tool_result":
+                                tool_results.append(block)
+                            elif block.get("type") == "text":
+                                other_parts.append(block["text"])
+                        elif hasattr(block, "type"):
+                            if block.type == "tool_result":
+                                tool_results.append({
+                                    "tool_use_id": block.tool_use_id,
+                                    "content": block.content,
+                                })
+                            elif block.type == "text":
+                                other_parts.append(block.text)
+
+                    # Send tool results as separate tool messages
+                    for tr in tool_results:
+                        oai_messages.append({
+                            "role": "tool",
+                            "tool_call_id": tr.get("tool_use_id", tr.get("tool_use_id", "")),
+                            "content": tr.get("content", ""),
+                        })
+                    # Send any text parts as a user message
+                    if other_parts:
+                        oai_messages.append({"role": "user", "content": "\n".join(other_parts)})
+            i += 1
 
         resp = self.client.chat.completions.create(
             model=self.model,
